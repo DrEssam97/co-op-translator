@@ -1,0 +1,25 @@
+name: Arabic render check (fork only)
+on:
+  push:
+    branches: [ci/arabic-render-check]
+  workflow_dispatch:
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install like the action does (package-version source)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .
+      - name: System FriBiDi on the runner
+        run: dpkg -l | grep -i fribidi || echo "no fribidi package"
+      - name: Render Arabic with the real renderer
+        run: python .github/arabic-check/render_check.py out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arabic-render
+          path: out/
