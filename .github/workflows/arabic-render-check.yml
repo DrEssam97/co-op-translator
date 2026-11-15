@@ -6,20 +6,45 @@ on:
 jobs:
   render:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ref: [main, fix/arabic-image-text]
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: check
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+          path: app
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Install like the action does (package-version source)
         run: |
           python -m pip install --upgrade pip
-          python -m pip install .
+          python -m pip install ./app
       - name: System FriBiDi on the runner
         run: dpkg -l | grep -i fribidi || echo "no fribidi package"
       - name: Render Arabic with the real renderer
-        run: python .github/arabic-check/render_check.py out
+        run: python check/.github/arabic-check/render_check.py out
       - uses: actions/upload-artifact@v4
         with:
-          name: arabic-render
+          name: arabic-render-${{ strategy.job-index }}
           path: out/
+  tests:
+    name: Their CI steps on the fix (Raqm on)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/arabic-image-text
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip poetry==2.4.2
+      - run: poetry install --with dev --no-interaction
+      - run: poetry run python -c "from PIL import features; print('raqm', features.check_feature('raqm'))"
+      - run: poetry run ruff check src tests
+      - run: poetry run black --check src tests
+      - run: poetry run pytest -m "not api_key_required"
